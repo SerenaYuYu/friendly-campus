@@ -200,11 +200,13 @@ function showPage(id){['useLINEPage','adminLoginPage','publicPage','notApprovedP
 function badge(cls,txt){return '<span class="'+cls+' text-xs rounded-full px-2 py-0.5">'+txt+'</span>';}
 function rem(s){return Math.max(0,s.total-s.done);}
 function sbadge(s){var r=rem(s);if(s.status==='已完成'||r<=0)return badge('bg2','已完成');if(r>=3)return badge('br','剩 '+r+' 次');return badge('by','剩 '+r+' 次');}
-function statCard(lbl,val,col,fn){return '<div class="bg-white rounded-xl shadow-sm p-5 border-l-4'+(fn?' cursor-pointer hover:shadow-md active:scale-95 transition-all':'')+'" style="border-color:'+col+'"'+(fn?' onclick="'+fn+'"':'')+'>'+
-'<div class="text-2xl font-bold" style="color:'+col+'">'+val+'</div>'+
-'<div class="text-sm text-gray-500 mt-1">'+lbl+'</div>'+
-(fn?'<div class="text-xs mt-1" style="color:'+col+'">查看明細 →</div>':'')+
-'</div>';}
+function statCard(lbl,val,col,fn){
+  var inner='<div class="text-2xl font-bold" style="color:'+col+'">'+val+'</div>'+
+    '<div class="text-sm text-gray-500 mt-1">'+lbl+'</div>'+
+    (fn?'<div class="text-xs mt-1" style="color:'+col+'">查看明細 →</div>':'');
+  if(fn)return '<button type="button" onclick="'+fn+'" class="bg-white rounded-xl shadow-sm p-5 border-l-4 w-full text-left hover:shadow-md active:opacity-70 transition-all" style="border-color:'+col+'">'+inner+'</button>';
+  return '<div class="bg-white rounded-xl shadow-sm p-5 border-l-4" style="border-color:'+col+'">'+inner+'</div>';
+}
 function loading(){return '<div class="text-center py-20 text-gray-400">載入中...</div>';}
 function now(){return new Date().toLocaleDateString('zh-TW');}
 
@@ -1046,7 +1048,7 @@ function filtS(){
 var eSId=null;
 function showSF(id){
   eSId=id;var s=id?(C.adm.students||[]).find(function(x){return x.id===id;}):null;
-  var GR=['1年級','2年級','3年級','4年級','5年級','6年級'],ST=['進行中','已完成','暫停','自願服務'];
+  var GR=['1年級','2年級','3年級','4年級','5年級','6年級'],ST=['進行中','已完成','暫停'];
   var total=s?s.total:5;
   document.getElementById('sfa').innerHTML=
     '<div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-4">'+
