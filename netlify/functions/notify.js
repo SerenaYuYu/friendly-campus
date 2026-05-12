@@ -1,14 +1,13 @@
-exports.handler = async function(event) {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method not allowed' };
-  }
+module.exports.handler = async (event) => {
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'no' };
   try {
-    var data = JSON.parse(event.body);
-    var parts = ['姓名：' + data.name];
-    if (data.title) parts.push('職稱：' + data.title);
-    if (data.myClass) parts.push('班級：' + data.myClass);
-    var text = '有新的教師權限申請\n\n' + parts.join('\n') + '\n\n請開啟友善校園系統審核。';
-    var res = await fetch('https://api.line.me/v2/bot/message/push', {
+    const d = JSON.parse(event.body);
+    const lines = ['姓名：' + d.name];
+    if (d.title) lines.push('職稱：' + d.title);
+    if (d.myClass) lines.push('班級：' + d.myClass);
+    const url = 'https://liff.line.me/2010068800-aFZP1shW';
+    const msg = '有新的教師權限申請\n\n' + lines.join('\n') + '\n\n' + url;
+    await fetch('https://api.line.me/v2/bot/message/push', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -16,10 +15,10 @@ exports.handler = async function(event) {
       },
       body: JSON.stringify({
         to: process.env.ADMIN_LINE_ID,
-        messages: [{ type: 'text', text: text }]
+        messages: [{ type: 'text', text: msg }]
       })
     });
-    return { statusCode: 200, body: 'OK' };
+    return { statusCode: 200, body: 'ok' };
   } catch (e) {
     return { statusCode: 500, body: e.message };
   }
