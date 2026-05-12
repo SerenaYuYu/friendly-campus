@@ -636,9 +636,8 @@ function areaCard(a){
         (a.volunteerCount?'<div class="text-xs bg2 rounded-full px-2 py-0.5">自願 '+a.volunteerCount+' 人</div>':'')+
       '</div></div>'+
     (a.status!=='已完成'?
-      '<div class="flex gap-2 pt-3 border-t border-gray-50">'+
-        '<button onclick="showEnvEd(\''+a.id+'\',\''+enc+'\')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-medium">🎓 環教登記</button>'+
-        '<button onclick="showVol(\''+a.id+'\',\''+enc+'\')" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg py-2 text-sm font-medium">🌟 自願登記</button>'+
+      '<div class="pt-3 border-t border-gray-50">'+
+        '<button onclick="showRegister(\''+a.id+'\',\''+enc+'\')" class="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-medium">📝 登記學生打掃</button>'+
       '</div>':'');
 }
 
@@ -756,9 +755,64 @@ async function doReport(){
   }catch(e){hideLoad();toast('失敗：'+e.message,true);}
 }
 
-// ══ 環教登記 ══
-var eSel=[];
-function showEnvEd(aId,enc){
+// ══ 統一登記 ══
+var eSel=[],curAId='',curEnc='',curRegType='envEd';
+
+function showRegister(aId,enc){
+  eSel=[];curAId=aId;curEnc=enc;curRegType='envEd';
+  openModal('<div class="p-5">'+
+    '<div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">登記學生打掃</h3><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div>'+
+    '<p class="text-sm text-gray-500 mb-3">區域：<span class="font-medium text-gray-700">'+decodeURIComponent(enc)+'</span></p>'+
+    '<div class="grid grid-cols-2 gap-2 mb-4">'+
+      '<button id="rt-env" onclick="setRT(\'envEd\')" class="border-2 border-blue-400 bg-blue-50 rounded-xl p-3 text-left">'+
+        '<div class="font-medium text-blue-700 text-sm">🎓 環境教育</div><div class="text-xs text-blue-400">計入次數</div></button>'+
+      '<button id="rt-vol" onclick="setRT(\'vol\')" class="border-2 border-gray-200 rounded-xl p-3 text-left">'+
+        '<div class="font-medium text-gray-500 text-sm">🌟 自願清掃</div><div class="text-xs text-gray-400">列入表揚</div></button>'+
+    '</div>'+
+    '<div><label class="text-sm text-gray-600">帶隊老師</label><input id="reg-t" value="'+T.name+'" class="inp mt-0.5 mb-3"></div>'+
+    '<div><label class="text-sm text-gray-600">搜尋學生（姓名或班級）</label><input id="ee-q" placeholder="例如：陳小明 或 3年2班" oninput="searchEE()" class="inp mt-0.5 mb-2"></div>'+
+    '<div id="ee-res" class="space-y-2 max-h-40 overflow-y-auto mb-3"></div>'+
+    '<div id="ee-sel" class="hidden bg-blue-50 rounded-lg p-3 mb-3"><div class="text-xs text-blue-700 font-medium mb-1">已選擇：</div><div id="ee-sl" class="flex flex-wrap gap-1"></div></div>'+
+    '<div class="flex gap-2">'+
+      '<button onclick="doRegister()" id="reg-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">確認登記</button>'+
+      '<button onclick="closeModal()" class="px-5 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm">取消</button>'+
+    '</div></div>');
+}
+
+function setRT(type){
+  curRegType=type;
+  document.getElementById('rt-env').className='border-2 '+(type==='envEd'?'border-blue-400 bg-blue-50':'border-gray-200')+' rounded-xl p-3 text-left';
+  document.getElementById('rt-vol').className='border-2 '+(type==='vol'?'border-emerald-400 bg-emerald-50':'border-gray-200')+' rounded-xl p-3 text-left';
+  document.getElementById('rt-env').querySelector('div').className='font-medium '+(type==='envEd'?'text-blue-700':'text-gray-500')+' text-sm';
+  document.getElementById('rt-vol').querySelector('div').className='font-medium '+(type==='vol'?'text-emerald-700':'text-gray-500')+' text-sm';
+  document.getElementById('reg-btn').className='flex-1 '+(type==='envEd'?'bg-blue-600 hover:bg-blue-700':'bg-emerald-600 hover:bg-emerald-700')+' text-white rounded-lg py-2.5 text-sm font-medium';
+}
+
+async function doRegister(){
+  if(!eSel.length){toast('請搜尋並選擇至少一位學生',true);return;}
+  var teacher=document.getElementById('reg-t').value.trim();
+  var areaName=decodeURIComponent(curEnc);
+  showLoad('登記中...');
+  try{
+    var batch=db.batch();
+    eSel.forEach(function(s){
+      batch.set(db.collection('registrations').doc(),{
+        areaId:curAId,areaName:areaName,
+        type:curRegType==='envEd'?'環教':'自願',
+        teacherName:teacher,
+        studentId:s.id,studentName:s.name,cls:s.cls,
+        registeredAt:now(),completed:false,completedAt:''
+      });
+    });
+    batch.update(db.collection('areas').doc(curAId),{status:'進行中'});
+    await batch.commit();
+    hideLoad();closeModal();toast('登記成功！');loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+// ══ 環教登記 ══（保留供向下相容）
+function showEnvEd(aId,enc){showRegister(aId,enc);}
+
   eSel=[];
   openModal('<div class="p-6">'+
     '<div class="flex justify-between items-center mb-3"><h3 class="font-bold text-lg text-blue-800">🎓 環教登記</h3><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div>'+
