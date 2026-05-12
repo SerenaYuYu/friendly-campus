@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>友善校園管理平台</title>
+<!-- LIFF SDK -->
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body{font-family:'Microsoft JhengHei','微軟正黑體',sans-serif;}
+  .tab-active{border-bottom:3px solid #3b82f6;color:#3b82f6;font-weight:600;}
+  .spin{animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .inp{display:block;width:100%;border:1px solid #e5e7eb;border-radius:.5rem;padding:.4rem .7rem;font-size:.875rem;outline:none;}
+  .inp:focus{border-color:#93c5fd;box-shadow:0 0 0 2px rgba(147,197,253,.3);}
+  .br{background:#fee2e2;color:#dc2626;}
+  .by{background:#fef9c3;color:#ca8a04;}
+  .bg2{background:#dcfce7;color:#16a34a;}
+  .bb{background:#dbeafe;color:#1d4ed8;}
+  .bp{background:#f3e8ff;color:#7e22ce;}
+  .bgr{background:#f3f4f6;color:#6b7280;}
+</style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<!-- 載入 -->
+<div id="ov" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+  <div class="text-center">
+    <div class="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full spin mx-auto mb-3"></div>
+    <div class="text-gray-500 text-sm" id="ovTxt">載入中...</div>
+  </div>
+</div>
+
+<!-- 彈窗 -->
+<div id="mbg" class="hidden fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onclick="if(event.target===this)closeModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" id="mbox"></div>
+</div>
+
+<!-- 請用LINE開啟（非LINE環境） -->
+<div id="useLINEPage" class="hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
+  <div class="bg-white rounded-2xl shadow-xl p-10 max-w-sm text-center">
+    <div class="text-6xl mb-4">💬</div>
+    <h2 class="text-xl font-bold text-gray-800 mb-3">請用 LINE 開啟</h2>
+    <p class="text-gray-500 text-sm mb-5">這個系統需要在 LINE 中開啟才能使用。<br>請掃描下方 QR Code 或點擊 LIFF 連結。</p>
+    <div class="bg-gray-50 rounded-xl p-4 text-xs text-gray-500 break-all">
+      https://liff.line.me/2010068800-aFZP1shW
+    </div>
+    <div class="mt-5 border-t border-gray-100 pt-4">
+      <p class="text-xs text-gray-400 mb-2">管理員可用此登入</p>
+      <button onclick="showAdminLogin()" class="text-sm text-blue-500 hover:underline">管理員帳號登入</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理員登入（瀏覽器用） -->
+<div id="adminLoginPage" class="hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-100">
+  <div class="bg-white rounded-2xl shadow-xl p-10 w-full max-w-sm">
+    <div class="text-center mb-6">
+      <div class="text-4xl mb-2">🔐</div>
+      <h2 class="text-lg font-bold text-gray-800">管理員登入</h2>
+      <p class="text-gray-400 text-xs mt-1">老師請使用 LINE 開啟系統</p>
+    </div>
+    <div class="space-y-3">
+      <input id="lEmail" type="email" placeholder="管理員 Email" class="inp">
+      <input id="lPw" type="password" placeholder="密碼" onkeydown="if(event.key==='Enter')signInEmail()" class="inp">
+      <div id="lErr" class="hidden text-red-500 text-xs px-1"></div>
+      <button onclick="signInEmail()" class="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-2.5 font-medium">登入</button>
+      <button onclick="showPage('useLINEPage')" class="w-full text-gray-400 text-sm hover:text-gray-600">← 返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- 公開頁面 -->
+<div id="publicPage" class="hidden min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+  <div class="max-w-lg mx-auto px-4 py-8">
+    <div class="text-center mb-6">
+      <div class="text-4xl mb-2">🌿</div>
+      <h1 class="text-2xl font-bold text-gray-800">友善校園</h1>
+      <p class="text-gray-500 text-sm mt-1">正向環境教育</p>
+    </div>
+    <div id="pub-stats" class="grid grid-cols-3 gap-3 mb-6"></div>
+    <div class="bg-white rounded-2xl shadow-sm p-5 mb-5">
+      <h2 class="font-bold text-gray-800 mb-4">🌟 自願清掃表揚名單</h2>
+      <div id="pub-honor"></div>
+    </div>
+    <button onclick="showPage('notApprovedPage')" class="w-full border border-emerald-400 text-emerald-700 bg-white hover:bg-emerald-50 rounded-xl py-3 text-sm">申請教師權限</button>
+  </div>
+</div>
+
+<!-- 帳號未開通：自助申請 -->
+<div id="notApprovedPage" class="hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div class="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4">
+    <div class="text-center mb-5">
+      <div class="text-5xl mb-3">🔒</div>
+      <h2 class="text-xl font-bold text-gray-800 mb-1">帳號尚未開通</h2>
+      <p class="text-gray-500 text-sm">填寫資料向管理員申請開通</p>
+    </div>
+    <div class="space-y-3">
+      <div><label class="text-sm text-gray-600">您的姓名 *</label>
+        <input id="naApplyName" class="inp mt-1" placeholder="例如：陳小明"></div>
+      <div><label class="text-sm text-gray-600">職稱（選填）</label>
+        <input id="naApplyTitle" class="inp mt-1" placeholder="例如：導師、教務主任兼導師、校長"></div>
+      <div><label class="text-sm text-gray-600">負責班級（選填，有帶班才填）</label>
+        <input id="naApplyClass" class="inp mt-1" list="classOptions" placeholder="例如：3年2班">
+        <datalist id="classOptions"></datalist></div>
+    </div>
+    <button onclick="applyAccount()" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl py-2.5 font-medium text-sm">送出申請</button>
+    <button onclick="liff.logout();location.reload();" class="mt-2 w-full text-sm text-gray-400 hover:text-red-500 py-1.5">登出</button>
+  </div>
+</div>
+
+<!-- 申請審核中 -->
+<div id="pendingPage" class="hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 to-amber-100">
+  <div class="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full mx-4 text-center">
+    <div class="text-5xl mb-4">⏳</div>
+    <h2 class="text-xl font-bold text-gray-800 mb-2">申請審核中</h2>
+    <p class="text-gray-500 text-sm mb-4">您的申請已送出，請等待管理員審核開通帳號。</p>
+    <button onclick="liff.logout();location.reload();" class="text-sm text-gray-500 hover:text-red-500 border border-gray-200 rounded-lg px-4 py-2">登出</button>
+  </div>
+</div>
+
+<!-- 第一次設定 -->
+<div id="setupPage" class="hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-100">
+  <div class="bg-white rounded-2xl shadow-xl p-10 w-full max-w-sm">
+    <div class="text-center mb-6">
+      <div class="text-4xl mb-2">🎉</div>
+      <h2 class="text-lg font-bold text-gray-800">歡迎！請設定管理員資料</h2>
+    </div>
+    <div class="space-y-3">
+      <div><label class="text-sm text-gray-600">您的姓名</label>
+        <input id="setupName" class="inp mt-0.5" placeholder="例如：王主任"></div>
+    </div>
+    <button onclick="doSetup()" class="mt-4 w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl py-2.5 font-medium">設定為管理員</button>
+  </div>
+</div>
+
+<!-- 主系統 -->
+<div id="mainApp" class="hidden">
+  <header class="bg-white shadow-sm sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">🌿</span>
+        <span class="font-bold text-gray-800">友善校園管理平台</span>
+        <span id="rtag" class="text-xs rounded-full px-2 py-0.5 ml-1"></span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-500 hidden md:block" id="utag"></span>
+        <button onclick="loadAll()" class="text-sm text-gray-500 hover:text-blue-500 border border-gray-200 rounded-lg px-3 py-1">↻</button>
+        <button onclick="doLogout()" class="text-sm text-gray-500 hover:text-red-500 border border-gray-200 rounded-lg px-3 py-1">登出</button>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-4 flex border-t border-gray-100 overflow-x-auto" id="tabs"></div>
+  </header>
+  <main class="max-w-7xl mx-auto px-4 py-6" id="main"></main>
+</div>
+
+<script>
+// ══ 設定 ══
+const LIFF_ID = '2010068800-aFZP1shW';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB8DJZ0zlsEbGlk9lAxAmvEy66YrTQTwDM",
+  authDomain: "school-env-edu.firebaseapp.com",
+  projectId: "school-env-edu",
+  storageBucket: "school-env-edu.firebasestorage.app",
+  messagingSenderId: "397905585657",
+  appId: "1:397905585657:web:dbfc1a8487a5f9a9368928"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ══ 狀態 ══
+var T = null; // teacherProfile
+var lineProfile = null; // LINE profile
+var loginType = ''; // 'line' or 'email'
+var tab = '';
+var C = {}; // cache
+
+// ══ 工具 ══
+function showLoad(t){document.getElementById('ovTxt').textContent=t||'載入中...';document.getElementById('ov').classList.remove('hidden');}
+function hideLoad(){document.getElementById('ov').classList.add('hidden');}
+function toast(m,e){
+  var d=document.createElement('div');
+  d.className='fixed bottom-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white text-sm '+(e?'bg-red-500':'bg-green-600');
+  d.textContent=m;document.body.appendChild(d);setTimeout(function(){d.remove();},3000);
+}
+function openModal(h){document.getElementById('mbox').innerHTML=h;document.getElementById('mbg').classList.remove('hidden');}
+function closeModal(){document.getElementById('mbg').classList.add('hidden');}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+function showPage(id){['useLINEPage','adminLoginPage','publicPage','notApprovedPage','pendingPage','setupPage','mainApp'].forEach(function(p){document.getElementById(p).classList.add('hidden');});document.getElementById(id).classList.remove('hidden');}
+function badge(cls,txt){return '<span class="'+cls+' text-xs rounded-full px-2 py-0.5">'+txt+'</span>';}
+function rem(s){return Math.max(0,s.total-s.done);}
+function sbadge(s){var r=rem(s);if(s.status==='已完成'||r<=0)return badge('bg2','已完成');if(r>=3)return badge('br','剩 '+r+' 次');return badge('by','剩 '+r+' 次');}
+function statCard(lbl,val,col){return '<div class="bg-white rounded-xl shadow-sm p-5 border-l-4" style="border-color:'+col+'"><div class="text-2xl font-bold" style="color:'+col+'">'+val+'</div><div class="text-sm text-gray-500 mt-1">'+lbl+'</div></div>';}
+function loading(){return '<div class="text-center py-20 text-gray-400">載入中...</div>';}
+function now(){return new Date().toLocaleDateString('zh-TW');}
+
+// ══ 初始化 ══
+window.onload = async function(){
+  showLoad('初始化中...');
+  try{
+    await liff.init({liffId: LIFF_ID});
+    if(liff.isInClient()){
+      // 在 LINE 裡面
+      if(!liff.isLoggedIn()){
+        liff.login();
+        return;
+      }
+      showLoad('取得 LINE 身份...');
+      lineProfile = await liff.getProfile();
+      loginType = 'line';
+      await checkTeacher('line:'+lineProfile.userId, lineProfile.displayName);
+    } else {
+      // 不在 LINE 裡
+      hideLoad();
+      showPage('useLINEPage');
+    }
+  }catch(e){
+    // LIFF 初始化失敗，顯示請用LINE頁面
+    hideLoad();
+    showPage('useLINEPage');
+  }
+};
+
+// 管理員用 Email 登入（瀏覽器）
+function showAdminLogin(){showPage('adminLoginPage');}
+
+function signInEmail(){
+  var em=document.getElementById('lEmail').value.trim();
+  var pw=document.getElementById('lPw').value;
+  if(!em||!pw){document.getElementById('lErr').textContent='請填寫Email和密碼';document.getElementById('lErr').classList.remove('hidden');return;}
+  showLoad('登入中...');
+  auth.signInWithEmailAndPassword(em,pw)
+    .then(async function(result){
+      loginType='email';
+      await checkTeacher('email:'+em, em);
+    })
+    .catch(function(e){
+      hideLoad();
+      document.getElementById('lErr').textContent='帳號或密碼錯誤';
+      document.getElementById('lErr').classList.remove('hidden');
+    });
+}
+
+// ══ 確認老師身份 ══
+async function checkTeacher(uid, displayName){
+  try{
+    showLoad('讀取帳號資料...');
+    const snap = await db.collection('teachers').limit(1).get();
+    if(snap.empty){
+      // 第一次使用
+      hideLoad();
+      showPage('setupPage');
+      return;
+    }
+    const doc = await db.collection('teachers').doc(uid).get();
+    if(!doc.exists){
+      hideLoad();
+      loadPublicData();
+      showPage('publicPage');
+      return;
+    }
+    if(doc.data().isActive===false){
+      hideLoad();
+      showPage('pendingPage');
+      return;
+    }
+    T = Object.assign({uid:uid}, doc.data());
+    hideLoad();
+    enterApp();
+  }catch(e){hideLoad();toast('讀取失敗：'+e.message,true);}
+}
+
+async function loadPublicData(){
+  try{
+    const[ss,rs]=await Promise.all([
+      db.collection('students').get(),
+      db.collection('registrations').where('type','==','自願').where('completionStatus','==','已完成').get()
+    ]);
+    var students=ss.docs.map(function(d){return d.data();});
+    var total=students.length;
+    var completed=students.filter(function(s){return s.status==='已完成';}).length;
+    var inProgress=students.filter(function(s){return s.status==='進行中';}).length;
+    document.getElementById('pub-stats').innerHTML=
+      [['✅','已完成',completed],['🔄','進行中',inProgress],['👥','學生總數',total]].map(function(i){
+        return '<div class="bg-white rounded-2xl shadow-sm p-4 text-center"><div class="text-2xl mb-1">'+i[0]+'</div>'+
+          '<div class="text-2xl font-bold text-gray-800">'+i[2]+'</div>'+
+          '<div class="text-xs text-gray-400 mt-0.5">'+i[1]+'</div></div>';
+      }).join('');
+    var regs=rs.docs.map(function(d){return d.data();})
+      .sort(function(a,b){return (b.completedAt||'').localeCompare(a.completedAt||'');})
+      .slice(0,30);
+    document.getElementById('pub-honor').innerHTML=regs.length?
+      regs.map(function(r){
+        return '<div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">'+
+          '<span class="font-medium text-gray-800">'+r.studentName+'</span>'+
+          '<span class="text-xs text-gray-400">'+r.class+' · '+(r.completedAt||r.registeredAt||'')+'</span></div>';
+      }).join(''):
+      '<p class="text-gray-400 text-sm text-center py-4">目前還沒有表揚紀錄</p>';
+  }catch(e){console.error(e);}
+}
+
+async function applyAccount(){
+  var name=document.getElementById('naApplyName').value.trim();
+  if(!name){toast('請填寫姓名',true);return;}
+  var title=document.getElementById('naApplyTitle').value.trim();
+  var myClass=document.getElementById('naApplyClass').value.trim();
+  var uid='line:'+lineProfile.userId;
+  showLoad('送出申請中...');
+  try{
+    await db.collection('teachers').doc(uid).set({
+      name:name,title:title,role:'teacher',myClass:myClass,
+      isActive:false,appliedAt:new Date().toLocaleString('zh-TW')
+    });
+    hideLoad();showPage('pendingPage');
+    fetch('/.netlify/functions/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,title,myClass})}).catch(function(){});
+  }catch(e){hideLoad();toast('送出失敗：'+e.message,true);}
+}
+
+async function doSetup(){
+  var name=document.getElementById('setupName').value.trim();
+  if(!name){toast('請輸入姓名',true);return;}
+  showLoad('設定中...');
+  var uid = loginType==='line' ? 'line:'+lineProfile.userId : 'email:'+auth.currentUser.email;
+  try{
+    await db.collection('teachers').doc(uid).set({name:name,role:'admin',myClass:''});
+    T={uid:uid,name:name,role:'admin',myClass:''};
+    hideLoad();enterApp();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+function doLogout(){
+  if(loginType==='line'){
+    if(liff.isLoggedIn())liff.logout();
+    location.reload();
+  } else {
+    auth.signOut().then(function(){location.reload();});
+  }
+}
+
+// ══ 進入系統 ══
+function enterApp(){
+  document.getElementById('utag').textContent=T.name;
+  var tag=document.getElementById('rtag');
+  if(T.role==='admin'){tag.textContent='管理員';tag.className='text-xs rounded-full px-2 py-0.5 ml-1 bg-purple-100 text-purple-700';}
+  else if(T.myClass){tag.textContent=T.myClass+' 班級老師';tag.className='text-xs rounded-full px-2 py-0.5 ml-1 bg-blue-100 text-blue-700';}
+  else{tag.textContent='教師';tag.className='text-xs rounded-full px-2 py-0.5 ml-1 bg-gray-100 text-gray-600';}
+  showPage('mainApp');
+  buildTabs();
+  loadAll();
+}
+
+// ══ 資料 ══
+async function loadAll(){
+  showLoad('載入資料...');
+  try{
+    await Promise.all([
+      loadSummary(),
+      loadHonor(),
+      T.myClass?loadMyClass():Promise.resolve(),
+      T.role==='admin'?loadAdminData():Promise.resolve()
+    ]);
+  }catch(e){toast('載入失敗：'+e.message,true);}
+  hideLoad();renderTab();
+}
+
+async function loadSummary(){
+  const[ss,as,rs]=await Promise.all([
+    db.collection('students').get(),
+    db.collection('areas').get(),
+    db.collection('registrations').get()
+  ]);
+  var students=ss.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+  var areas=as.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+  var regs=rs.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+  var need=students.filter(function(s){return s.status==='進行中'&&s.done<s.total;});
+  var byClass={};
+  need.forEach(function(s){
+    if(!byClass[s.cls])byClass[s.cls]={count:0,times:0};
+    byClass[s.cls].count++;byClass[s.cls].times+=(s.total-s.done);
+  });
+  var pAreas=areas.filter(function(a){return a.status!=='已完成';}).map(function(a){
+    var ar=regs.filter(function(r){return r.areaId===a.id&&!r.completed;});
+    return Object.assign({},a,{
+      envEdCount:ar.filter(function(r){return r.type==='環教';}).length,
+      volunteerCount:ar.filter(function(r){return r.type==='自願';}).length
+    });
+  });
+  C.summary={
+    totalNeedEnvEd:need.length,
+    totalRemainingTimes:need.reduce(function(s,st){return s+Math.max(0,st.total-st.done);},0),
+    completedCount:students.filter(function(s){return s.status==='已完成'||s.done>=s.total;}).length,
+    byClass:byClass,pendingAreas:pAreas
+  };
+}
+
+async function loadHonor(){
+  const snap=await db.collection('registrations').where('type','==','自願').get();
+  C.honor=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());});
+}
+
+async function loadMyClass(){
+  const[ss,rs]=await Promise.all([
+    db.collection('students').where('cls','==',T.myClass).get(),
+    db.collection('registrations').where('cls','==',T.myClass).get()
+  ]);
+  C.myData={
+    students:ss.docs.map(function(d){return Object.assign({id:d.id},d.data());}),
+    regs:rs.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+  };
+}
+
+async function loadAdminData(){
+  const[ss,as,rs,fs,ts]=await Promise.all([
+    db.collection('students').get(),
+    db.collection('areas').get(),
+    db.collection('registrations').get(),
+    db.collection('feedbacks').get(),
+    db.collection('teachers').get()
+  ]);
+  C.adm={
+    students:ss.docs.map(function(d){return Object.assign({id:d.id},d.data());}),
+    areas:as.docs.map(function(d){return Object.assign({id:d.id},d.data());}),
+    regs:rs.docs.map(function(d){return Object.assign({id:d.id},d.data());}),
+    feedbacks:fs.docs.map(function(d){return Object.assign({id:d.id},d.data());}),
+    teachers:ts.docs.map(function(d){return Object.assign({uid:d.id},d.data());})
+  };
+}
+
+// ══ 分頁 ══
+function buildTabs(){
+  var ts=[['sum','📊 全校概況'],['areas','🗺️ 待清理區域'],['honor','🏆 表揚名單'],['fb','💬 意見回饋']];
+  if(T.myClass)ts.splice(1,0,['cls','🏫 我的班級']);
+  if(T.role==='admin')ts=ts.concat([['admS','👥 學生管理'],['admT','👩‍🏫 帳號管理'],['admSet','⚙️ 設定']]);
+  document.getElementById('tabs').innerHTML=ts.map(function(t){
+    return '<button onclick="sw(\''+t[0]+'\')" id="tab-'+t[0]+'" class="tab-btn px-4 py-3 text-sm text-gray-500 hover:text-blue-500 whitespace-nowrap">'+t[1]+'</button>';
+  }).join('');
+  sw(T.myClass?'cls':'sum');
+}
+
+function sw(t){
+  tab=t;
+  document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('tab-active');});
+  var el=document.getElementById('tab-'+t);if(el)el.classList.add('tab-active');
+  renderTab();
+}
+
+function renderTab(){
+  if(tab==='sum')renderSum();
+  else if(tab==='cls')renderCls();
+  else if(tab==='areas')renderAreas();
+  else if(tab==='honor')renderHonor();
+  else if(tab==='fb')renderFb();
+  else if(tab==='admS')renderAdmS();
+  else if(tab==='admT')renderAdmT();
+  else if(tab==='admSet')renderAdmSet();
+}
+
+// ══ 全校概況 ══
+function renderSum(){
+  if(!C.summary){document.getElementById('main').innerHTML=loading();return;}
+  var s=C.summary;
+  var rows=Object.entries(s.byClass||{}).sort(function(a,b){return b[1].times-a[1].times;}).map(function(e){
+    return '<tr class="border-b border-gray-50 hover:bg-gray-50"><td class="px-4 py-2 font-medium">'+e[0]+'</td><td class="px-4 py-2 text-center">'+e[1].count+'</td><td class="px-4 py-2 text-center font-semibold text-blue-600">'+e[1].times+'</td></tr>';
+  }).join('');
+  document.getElementById('main').innerHTML=
+    '<h2 class="text-xl font-bold text-gray-800 mb-5">全校環教概況</h2>'+
+    '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">'+
+      statCard('需完成環教',s.totalNeedEnvEd+' 位','#ef4444')+
+      statCard('合計剩餘次數',s.totalRemainingTimes+' 次','#8b5cf6')+
+      statCard('已完成學生',s.completedCount+' 位','#22c55e')+
+      statCard('待清理區域',(s.pendingAreas||[]).length+' 個','#f97316')+
+    '</div>'+
+    '<div class="grid md:grid-cols-2 gap-4">'+
+      '<div class="bg-white rounded-xl shadow-sm p-5"><h3 class="font-semibold text-gray-700 mb-3">📊 各班環教統計</h3>'+
+        (rows?'<table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-2 text-gray-500">班級</th><th class="text-center px-4 py-2 text-gray-500">人數</th><th class="text-center px-4 py-2 text-gray-500">剩餘次數</th></tr></thead><tbody>'+rows+'</tbody></table>':
+        '<div class="text-center py-8 text-gray-400">目前無需完成環教的學生 🎉</div>')+
+      '</div>'+
+      '<div class="bg-white rounded-xl shadow-sm p-5">'+
+        '<div class="flex justify-between items-center mb-3"><h3 class="font-semibold text-gray-700">🗺️ 待清理區域</h3><button onclick="sw(\'areas\')" class="text-blue-500 text-sm">查看全部</button></div>'+
+        ((s.pendingAreas||[]).length?(s.pendingAreas||[]).slice(0,5).map(function(a){
+          return '<div class="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">'+
+            '<span class="font-medium text-sm">'+a.area+(a.location?' · '+a.location:'')+'</span>'+
+            '<div class="flex gap-1">'+(a.envEdCount?badge('bb','環教'+a.envEdCount):'')+
+            (a.volunteerCount?badge('bg2','自願'+a.volunteerCount):'')+'</div></div>';
+        }).join(''):'<div class="text-center py-8 text-gray-400">目前沒有待清理區域 🎉</div>')+
+      '</div>'+
+    '</div>';
+}
+
+// ══ 我的班級 ══
+function renderCls(){
+  if(!C.myData){document.getElementById('main').innerHTML=loading();return;}
+  var students=C.myData.students||[],regs=C.myData.regs||[];
+  var need=students.filter(function(s){return s.status==='進行中'&&s.done<s.total;});
+  var left=need.reduce(function(s,st){return s+rem(st);},0);
+  var pRegs=regs.filter(function(r){return !r.completed;});
+  var SC={'進行中':'bb','已完成':'bg2','暫停':'bgr','自願服務':'bp'};
+  document.getElementById('main').innerHTML=
+    '<h2 class="text-xl font-bold text-gray-800 mb-4">我的班級：'+T.myClass+'</h2>'+
+    '<div class="grid grid-cols-3 gap-4 mb-5">'+
+      statCard('班上學生總數',students.length,'#6366f1')+
+      statCard('需完成環教',need.length,'#ef4444')+
+      statCard('班上剩餘次數',left,'#8b5cf6')+
+    '</div>'+
+    '<div class="bg-white rounded-xl shadow-sm overflow-x-auto mb-5">'+
+      '<div class="px-5 py-4 border-b font-semibold text-gray-700">班上學生環教狀況</div>'+
+      '<table class="w-full text-sm"><thead class="bg-gray-50"><tr>'+
+        '<th class="text-left px-4 py-3 text-gray-500">姓名</th><th class="text-center px-4 py-3 text-gray-500">進度</th>'+
+        '<th class="text-center px-4 py-3 text-gray-500">剩餘次數</th><th class="text-center px-4 py-3 text-gray-500">狀態</th>'+
+        '<th class="text-left px-4 py-3 text-gray-500">備註</th></tr></thead><tbody>'+
+      (students.length?students.map(function(s){
+        return '<tr class="border-b border-gray-50 hover:bg-gray-50">'+
+          '<td class="px-4 py-3 font-medium">'+s.name+'</td>'+
+          '<td class="px-4 py-3 text-center text-gray-500">'+s.done+'/'+s.total+'</td>'+
+          '<td class="px-4 py-3 text-center">'+sbadge(s)+'</td>'+
+          '<td class="px-4 py-3 text-center">'+badge(SC[s.status]||'bgr',s.status)+'</td>'+
+          '<td class="px-4 py-3 text-gray-400 text-xs">'+(s.note||'—')+'</td></tr>';
+      }).join(''):'<tr><td colspan="5" class="text-center py-10 text-gray-400">班上尚無學生資料</td></tr>')+
+      '</tbody></table></div>'+
+    (pRegs.length?
+      '<div class="bg-white rounded-xl shadow-sm p-5"><div class="font-semibold text-gray-700 mb-3">班上待完成的打掃登記</div>'+
+        '<div class="space-y-3">'+pRegs.map(function(r){
+          return '<div class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-3">'+
+            '<div><span class="font-medium">'+r.studentName+'</span><span class="text-gray-400 text-xs ml-2">'+r.areaName+'</span>'+
+            badge(r.type==='環教'?'bb':'bp',r.type)+'</div>'+
+            '<div class="flex gap-2">'+
+              '<button onclick="doComplete(\''+r.id+'\',\''+r.studentId+'\')" class="text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg px-3 py-1">確認完成</button>'+
+              '<button onclick="doCancel(\''+r.id+'\')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-lg px-3 py-1">取消</button>'+
+            '</div></div>';
+        }).join('')+'</div></div>':'');
+}
+
+// ══ 待清理區域 ══
+function renderAreas(){
+  if(!C.summary){document.getElementById('main').innerHTML=loading();return;}
+  var areas=C.summary.pendingAreas||[];
+  document.getElementById('main').innerHTML=
+    '<div class="flex items-center justify-between mb-5">'+
+      '<h2 class="text-xl font-bold text-gray-800">待清理區域</h2>'+
+      '<button onclick="showReportArea()" class="bg-orange-500 hover:bg-orange-600 text-white rounded-lg px-4 py-2 text-sm font-medium">+ 登記髒亂</button>'+
+    '</div>'+
+    (areas.length?'<div class="space-y-4">'+areas.map(areaCard).join('')+'</div>':
+    '<div class="bg-white rounded-xl shadow-sm p-12 text-center text-gray-400"><div class="text-4xl mb-3">🎉</div>目前沒有待清理區域</div>');
+}
+
+function areaCard(a){
+  var sc={'待指派':'by','進行中':'bb','已完成':'bg2'}[a.status]||'bgr';
+  var enc=encodeURIComponent(a.area+(a.location?' · '+a.location:''));
+  return '<div class="bg-white rounded-xl shadow-sm p-5">'+
+    '<div class="flex items-start justify-between mb-3">'+
+      '<div class="flex-1"><div class="flex items-center gap-2 mb-1 flex-wrap">'+
+        '<span class="font-semibold text-gray-800">'+a.area+(a.location?' · <span class="font-normal text-gray-500">'+a.location+'</span>':'')+'</span>'+
+        badge(sc,a.status)+'</div>'+
+        (a.desc?'<p class="text-sm text-gray-500 mb-1">'+a.desc+'</p>':'')+
+        '<p class="text-xs text-gray-400">登記：'+(a.teacher||'匿名')+' · '+(a.createdAt||'')+(a.deadline?' · 期望 '+a.deadline:'')+'</p>'+
+        (a.photo?'<img src="'+a.photo+'" onclick="viewPhoto(\''+a.id+'\')" class="mt-2 rounded-lg max-h-32 object-cover cursor-pointer hover:opacity-90 transition" alt="現場照片">':'')+
+      '</div>'+
+      '<div class="text-right ml-3 space-y-1 shrink-0">'+
+        (a.envEdCount?'<div class="text-xs bb rounded-full px-2 py-0.5">環教 '+a.envEdCount+' 人</div>':'')+
+        (a.volunteerCount?'<div class="text-xs bg2 rounded-full px-2 py-0.5">自願 '+a.volunteerCount+' 人</div>':'')+
+      '</div></div>'+
+    (a.status!=='已完成'?
+      '<div class="flex gap-2 pt-3 border-t border-gray-50">'+
+        '<button onclick="showEnvEd(\''+a.id+'\',\''+enc+'\')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2 text-sm font-medium">🎓 環教登記</button>'+
+        '<button onclick="showVol(\''+a.id+'\',\''+enc+'\')" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg py-2 text-sm font-medium">🌟 自願登記</button>'+
+      '</div>':'');
+}
+
+function showReportArea(){
+  openModal('<div class="p-6">'+
+    '<div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">登記髒亂區域</h3><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div>'+
+    '<div class="grid grid-cols-2 gap-3 mb-3">'+
+      '<div class="col-span-2 flex items-center justify-between">'+
+        '<div id="ra-name-wrap" class="flex-1 mr-3"><label class="text-sm text-gray-600">登記老師</label><input id="ra-t" value="'+T.name+'" class="inp mt-0.5"></div>'+
+        '<label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer shrink-0 mt-5">'+
+          '<input type="checkbox" id="ra-anon" onchange="toggleAnon()" class="w-4 h-4 accent-orange-500"> 匿名登記'+
+        '</label>'+
+      '</div>'+
+      '<div><label class="text-sm text-gray-600">區域</label><select id="ra-a" class="inp mt-0.5">'+
+        ['操場','走廊','餐廳','廁所','花圃','教室','校門口','其他'].map(function(o){return '<option>'+o+'</option>';}).join('')+'</select></div>'+
+      '<div><label class="text-sm text-gray-600">詳細地點</label><input id="ra-l" placeholder="如：東側球場" class="inp mt-0.5"></div>'+
+      '<div><label class="text-sm text-gray-600">預估時間</label><select id="ra-d" class="inp mt-0.5">'+
+        ['15 分鐘','30 分鐘','1 小時','半天'].map(function(o){return '<option>'+o+'</option>';}).join('')+'</select></div>'+
+      '<div><label class="text-sm text-gray-600">期望完成日</label><input id="ra-dl" type="date" value="'+new Date().toISOString().split('T')[0]+'" class="inp mt-0.5"></div>'+
+    '</div>'+
+    '<div class="mb-3"><label class="text-sm text-gray-600">髒亂描述</label><textarea id="ra-desc" rows="2" class="inp mt-0.5" placeholder="請描述髒亂狀況"></textarea></div>'+
+    '<div class="mb-4">'+
+      '<label class="text-sm text-gray-600 block mb-1">拍照（選填）</label>'+
+      '<label class="flex items-center justify-center gap-2 border-2 border-dashed border-orange-200 rounded-xl py-4 cursor-pointer hover:bg-orange-50 transition">'+
+        '<span class="text-2xl">📷</span>'+
+        '<span class="text-sm text-orange-600">拍照或選擇相片</span>'+
+        '<input type="file" accept="image/*" capture="environment" id="ra-photo" onchange="onPhotoChange()" class="hidden">'+
+      '</label>'+
+      '<div id="ra-preview" class="hidden mt-2 relative">'+
+        '<img id="ra-preview-img" class="w-full rounded-xl max-h-40 object-cover">'+
+        '<button onclick="clearPhoto()" class="absolute top-1 right-1 bg-black bg-opacity-50 text-white rounded-full w-6 h-6 text-xs flex items-center justify-center">✕</button>'+
+      '</div>'+
+    '</div>'+
+    '<div class="flex gap-2">'+
+      '<button onclick="doReport()" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white rounded-lg py-2.5 text-sm font-medium">送出登記</button>'+
+      '<button onclick="closeModal()" class="px-5 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm">取消</button>'+
+    '</div></div>');
+}
+
+function toggleAnon(){
+  var anon=document.getElementById('ra-anon').checked;
+  var wrap=document.getElementById('ra-name-wrap');
+  wrap.style.opacity=anon?'0.3':'1';
+  document.getElementById('ra-t').disabled=anon;
+}
+
+function onPhotoChange(){
+  var file=document.getElementById('ra-photo').files[0];
+  if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    document.getElementById('ra-preview-img').src=e.target.result;
+    document.getElementById('ra-preview').classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto(){
+  document.getElementById('ra-photo').value='';
+  document.getElementById('ra-preview').classList.add('hidden');
+  document.getElementById('ra-preview-img').src='';
+}
+
+function viewPhoto(aId){
+  var a=(C.summary.pendingAreas||[]).find(function(x){return x.id===aId;});
+  if(!a||!a.photo)return;
+  openModal('<div class="p-4"><div class="flex justify-between items-center mb-3"><span class="font-medium">'+a.area+(a.location?' · '+a.location:'')+'</span><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div><img src="'+a.photo+'" class="w-full rounded-xl"></div>');
+}
+
+function compressImage(file){
+  return new Promise(function(resolve){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      var img=new Image();
+      img.onload=function(){
+        var max=800,w=img.width,h=img.height;
+        if(w>max||h>max){
+          if(w>h){h=Math.round(h*max/w);w=max;}
+          else{w=Math.round(w*max/h);h=max;}
+        }
+        var canvas=document.createElement('canvas');
+        canvas.width=w;canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',0.65));
+      };
+      img.src=e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function doReport(){
+  var anon=document.getElementById('ra-anon').checked;
+  var teacher=anon?'匿名':document.getElementById('ra-t').value.trim();
+  if(!anon&&!teacher){toast('請填寫您的姓名',true);return;}
+  showLoad('處理中...');
+  try{
+    var photoFile=document.getElementById('ra-photo').files[0];
+    var photo='';
+    if(photoFile){
+      showLoad('壓縮照片中...');
+      photo=await compressImage(photoFile);
+    }
+    showLoad('送出中...');
+    await db.collection('areas').add({
+      teacher:teacher,isAnonymous:anon,
+      area:document.getElementById('ra-a').value,
+      location:document.getElementById('ra-l').value.trim(),
+      duration:document.getElementById('ra-d').value,
+      deadline:document.getElementById('ra-dl').value,
+      status:'待指派',desc:document.getElementById('ra-desc').value.trim(),
+      photo:photo,createdAt:now()
+    });
+    hideLoad();closeModal();toast('登記成功！');loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+// ══ 環教登記 ══
+var eSel=[];
+function showEnvEd(aId,enc){
+  eSel=[];
+  openModal('<div class="p-6">'+
+    '<div class="flex justify-between items-center mb-3"><h3 class="font-bold text-lg text-blue-800">🎓 環教登記</h3><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div>'+
+    '<p class="text-sm text-gray-500 mb-3">區域：<span class="font-medium text-gray-700">'+decodeURIComponent(enc)+'</span></p>'+
+    '<div><label class="text-sm text-gray-600">帶隊老師</label><input id="ee-t" value="'+T.name+'" class="inp mt-0.5 mb-3"></div>'+
+    '<div><label class="text-sm text-gray-600">搜尋學生（姓名或班級）</label><input id="ee-q" placeholder="例如：陳小明 或 3年2班" oninput="searchEE()" class="inp mt-0.5 mb-2"></div>'+
+    '<div id="ee-res" class="space-y-2 max-h-48 overflow-y-auto mb-3"></div>'+
+    '<div id="ee-sel" class="hidden bg-blue-50 rounded-lg p-3 mb-3"><div class="text-xs text-blue-700 font-medium mb-1">已選擇：</div><div id="ee-sl" class="flex flex-wrap gap-1"></div></div>'+
+    '<div class="flex gap-2">'+
+      '<button onclick="doEnvEd(\''+aId+'\',\''+enc+'\')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">確認登記</button>'+
+      '<button onclick="closeModal()" class="px-5 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm">取消</button>'+
+    '</div></div>');
+}
+
+async function searchEE(){
+  var kw=document.getElementById('ee-q').value.trim().toLowerCase();
+  if(!kw){document.getElementById('ee-res').innerHTML='';return;}
+  const snap=await db.collection('students').where('status','==','進行中').get();
+  var list=snap.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+    .filter(function(s){return s.done<s.total&&(s.name.includes(kw)||(s.cls||'').toLowerCase().includes(kw));})
+    .slice(0,8);
+  var el=document.getElementById('ee-res');
+  if(!list.length){el.innerHTML='<div class="text-sm text-gray-400 text-center py-2">找不到符合的學生</div>';return;}
+  el.innerHTML=list.map(function(s){
+    var pk=eSel.some(function(x){return x.id===s.id;});
+    return '<div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">'+
+      '<div><span class="font-medium text-sm">'+s.name+'</span><span class="text-gray-400 text-xs ml-2">'+s.cls+'</span>'+
+      badge('br','剩'+(s.total-s.done)+'次')+'</div>'+
+      '<button onclick="togEE(\''+s.id+'\',\''+s.name+'\',\''+s.cls+'\')" class="text-xs '+(pk?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700')+' rounded px-2 py-1">'+(pk?'取消':'選擇')+'</button></div>';
+  }).join('');
+}
+
+function togEE(id,name,cls){
+  var idx=eSel.findIndex(function(x){return x.id===id;});
+  if(idx>=0)eSel.splice(idx,1);else eSel.push({id:id,name:name,cls:cls});
+  searchEE();
+  var box=document.getElementById('ee-sel'),lst=document.getElementById('ee-sl');
+  if(!eSel.length){box.classList.add('hidden');return;}
+  box.classList.remove('hidden');
+  lst.innerHTML=eSel.map(function(s){return badge('bb',s.name+' ('+s.cls+')');}).join('');
+}
+
+async function doEnvEd(aId,enc){
+  if(!eSel.length){toast('請選擇至少一位學生',true);return;}
+  var teacher=document.getElementById('ee-t').value.trim();
+  showLoad('登記中...');
+  try{
+    var areaName=decodeURIComponent(enc);
+    var batch=db.batch();
+    eSel.forEach(function(s){
+      batch.set(db.collection('registrations').doc(),{
+        areaId:aId,areaName:areaName,type:'環教',teacherName:teacher,
+        studentId:s.id,studentName:s.name,cls:s.cls,
+        registeredAt:now(),completed:false,completedAt:''
+      });
+    });
+    batch.update(db.collection('areas').doc(aId),{status:'進行中'});
+    await batch.commit();
+    hideLoad();closeModal();toast('環教登記成功！');loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+// ══ 自願登記 ══
+function showVol(aId,enc){
+  openModal('<div class="p-6">'+
+    '<div class="flex justify-between items-center mb-3"><h3 class="font-bold text-lg text-emerald-800">🌟 自願登記打掃</h3><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div>'+
+    '<p class="text-sm text-gray-500 mb-4">區域：<span class="font-medium text-gray-700">'+decodeURIComponent(enc)+'</span></p>'+
+    '<div class="space-y-3">'+
+      '<div><label class="text-sm text-gray-600">帶隊老師</label><input id="vt" value="'+T.name+'" class="inp mt-0.5"></div>'+
+      '<div><label class="text-sm text-gray-600">學生姓名 *</label><input id="vn" placeholder="學生姓名" class="inp mt-0.5"></div>'+
+      '<div><label class="text-sm text-gray-600">班級 *</label><input id="vc" placeholder="如：3年2班" value="'+(T.myClass||'')+'" class="inp mt-0.5"></div>'+
+    '</div>'+
+    '<p class="text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2 mt-3">✅ 完成後學生姓名將顯示於表揚名單</p>'+
+    '<div class="flex gap-2 mt-4">'+
+      '<button onclick="doVol(\''+aId+'\',\''+enc+'\')" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg py-2.5 text-sm font-medium">確認登記</button>'+
+      '<button onclick="closeModal()" class="px-5 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm">取消</button>'+
+    '</div></div>');
+}
+
+async function doVol(aId,enc){
+  var name=document.getElementById('vn').value.trim();
+  var cls=document.getElementById('vc').value.trim();
+  var teacher=document.getElementById('vt').value.trim();
+  if(!name||!cls){toast('請填寫學生姓名和班級',true);return;}
+  showLoad('登記中...');
+  try{
+    await db.collection('registrations').add({
+      areaId:aId,areaName:decodeURIComponent(enc),type:'自願',teacherName:teacher,
+      studentId:'',studentName:name,cls:cls,registeredAt:now(),completed:false,completedAt:''
+    });
+    await db.collection('areas').doc(aId).update({status:'進行中'});
+    hideLoad();closeModal();toast('自願登記成功！');loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+// ══ 確認完成 ══
+async function doComplete(regId,studentId){
+  if(!confirm('確認這次打掃已完成嗎？\n（環教類型將自動扣掉一次次數）'))return;
+  showLoad('更新中...');
+  try{
+    var regDoc=await db.collection('registrations').doc(regId).get();
+    var reg=regDoc.data();
+    var batch=db.batch();
+    batch.update(db.collection('registrations').doc(regId),{completed:true,completedAt:now()});
+    if(reg.type==='環教'&&studentId){
+      var stuDoc=await db.collection('students').doc(studentId).get();
+      if(stuDoc.exists){
+        var stu=stuDoc.data();
+        var newDone=(stu.done||0)+1;
+        var upd={done:newDone,updatedAt:now()};
+        if(newDone>=stu.total)upd.status='已完成';
+        batch.update(db.collection('students').doc(studentId),upd);
+      }
+    }
+    await batch.commit();
+    hideLoad();toast('已確認完成！');loadAll();
+  }catch(e){hideLoad();toast('錯誤：'+e.message,true);}
+}
+
+async function doCancel(regId){
+  if(!confirm('確定要取消這筆登記嗎？'))return;
+  showLoad('處理中...');
+  try{await db.collection('registrations').doc(regId).delete();hideLoad();toast('已取消');loadAll();}
+  catch(e){hideLoad();toast('錯誤：'+e.message,true);}
+}
+
+// ══ 表揚名單 ══
+function renderHonor(){
+  var done=(C.honor||[]).filter(function(r){return r.completed;});
+  var pend=(C.honor||[]).filter(function(r){return !r.completed;});
+  document.getElementById('main').innerHTML=
+    '<h2 class="text-xl font-bold text-gray-800 mb-5">🏆 自願打掃表揚名單</h2>'+
+    '<div class="grid md:grid-cols-2 gap-4">'+
+      '<div class="bg-white rounded-xl shadow-sm p-5"><h3 class="font-semibold text-emerald-700 mb-3">✅ 已完成 '+badge('bg2',done.length)+'</h3>'+
+        (done.length?done.map(function(r){return '<div class="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0"><div class="text-2xl">⭐</div><div><div class="font-semibold">'+r.studentName+' <span class="text-gray-400 text-sm font-normal">'+r.cls+'</span></div><div class="text-xs text-gray-400">'+r.areaName+' · '+r.completedAt+'</div></div></div>';}).join(''):
+        '<div class="text-center py-8 text-gray-400">尚無已完成記錄</div>')+
+      '</div>'+
+      '<div class="bg-white rounded-xl shadow-sm p-5"><h3 class="font-semibold text-blue-700 mb-3">🕐 登記中 '+badge('bb',pend.length)+'</h3>'+
+        (pend.length?pend.map(function(r){return '<div class="flex items-center gap-3 py-2.5 border-b border-gray-50 last:border-0"><div class="text-2xl">🌱</div><div><div class="font-semibold">'+r.studentName+' <span class="text-gray-400 text-sm font-normal">'+r.cls+'</span></div><div class="text-xs text-gray-400">'+r.areaName+' · '+r.registeredAt+'</div></div></div>';}).join(''):
+        '<div class="text-center py-8 text-gray-400">尚無登記中記錄</div>')+
+      '</div>'+
+    '</div>';
+}
+
+// ══ 意見回饋 ══
+function renderFb(){
+  document.getElementById('main').innerHTML=
+    '<h2 class="text-xl font-bold text-gray-800 mb-5">💬 意見回饋</h2>'+
+    '<div class="bg-white rounded-xl shadow-sm p-6 max-w-xl">'+
+      '<h3 class="font-semibold text-gray-700 mb-4">提交新意見</h3>'+
+      '<div class="space-y-3">'+
+        '<div><label class="text-sm text-gray-600">類型</label><select id="fbc" class="inp mt-0.5">'+
+          ['系統建議','流程問題','功能需求','其他'].map(function(o){return '<option>'+o+'</option>';}).join('')+'</select></div>'+
+        '<div><label class="text-sm text-gray-600">標題</label><input id="fbt" placeholder="簡短說明" class="inp mt-0.5"></div>'+
+        '<div><label class="text-sm text-gray-600">內容</label><textarea id="fbc2" rows="4" placeholder="詳細描述..." class="inp mt-0.5"></textarea></div>'+
+        '<label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer"><input id="fba" type="checkbox"> 匿名提交</label>'+
+      '</div>'+
+      '<button onclick="doFb()" class="mt-4 w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">送出意見</button>'+
+    '</div>';
+}
+
+async function doFb(){
+  var title=document.getElementById('fbt').value.trim();
+  var content=document.getElementById('fbc2').value.trim();
+  if(!title||!content){toast('請填寫標題和內容',true);return;}
+  showLoad('送出中...');
+  try{
+    await db.collection('feedbacks').add({
+      submitterName:document.getElementById('fba').checked?'（匿名）':T.name,
+      category:document.getElementById('fbc').value,title:title,content:content,
+      submittedAt:now(),processingStatus:'待處理',reply:''
+    });
+    hideLoad();toast('已送出，謝謝！');document.getElementById('fbt').value='';document.getElementById('fbc2').value='';
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+// ══ 管理員：學生管理 ══
+function renderAdmS(){
+  if(!C.adm){document.getElementById('main').innerHTML=loading();return;}
+  document.getElementById('main').innerHTML=
+    '<div class="flex items-center justify-between mb-4"><h2 class="text-xl font-bold text-gray-800">全校學生管理</h2>'+
+      '<div class="flex gap-2"><input id="sq" placeholder="搜尋姓名/班級" oninput="filtS()" class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">'+
+      '<button onclick="showSF(null)" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-1.5 text-sm">+ 新增</button></div></div>'+
+    '<div id="sfa"></div>'+
+    '<div class="bg-white rounded-xl shadow-sm overflow-x-auto">'+
+      '<table class="w-full text-sm"><thead class="bg-gray-50 border-b"><tr>'+
+        '<th class="text-left px-4 py-3 text-gray-500">姓名</th><th class="text-left px-4 py-3 text-gray-500">班級</th>'+
+        '<th class="text-center px-4 py-3 text-gray-500">進度</th><th class="text-center px-4 py-3 text-gray-500">剩餘</th>'+
+        '<th class="text-center px-4 py-3 text-gray-500">狀態</th><th class="px-4 py-3 text-gray-500">操作</th>'+
+      '</tr></thead><tbody id="stb"></tbody></table>'+
+      '<div id="sem" class="hidden text-center py-12 text-gray-400">尚無學生資料</div></div>';
+  filtS();
+}
+
+function filtS(){
+  var q=(document.getElementById('sq')?document.getElementById('sq').value:'').toLowerCase();
+  var list=(C.adm.students||[]).filter(function(s){return !q||s.name.includes(q)||(s.cls||'').toLowerCase().includes(q);});
+  var tb=document.getElementById('stb'),em=document.getElementById('sem');
+  if(!tb)return;
+  if(!list.length){tb.innerHTML='';em.classList.remove('hidden');return;}
+  em.classList.add('hidden');
+  var SC={'進行中':'bb','已完成':'bg2','暫停':'bgr','自願服務':'bp'};
+  tb.innerHTML=list.map(function(s){
+    return '<tr class="border-b border-gray-50 hover:bg-gray-50">'+
+      '<td class="px-4 py-3 font-medium">'+s.name+'</td><td class="px-4 py-3 text-gray-600">'+(s.cls||'')+'</td>'+
+      '<td class="px-4 py-3 text-center text-gray-500">'+s.done+'/'+s.total+'</td>'+
+      '<td class="px-4 py-3 text-center">'+sbadge(s)+'</td>'+
+      '<td class="px-4 py-3 text-center">'+badge(SC[s.status]||'bgr',s.status)+'</td>'+
+      '<td class="px-4 py-3"><div class="flex gap-1">'+
+        '<button onclick="showSF(\''+s.id+'\')" class="text-xs bb rounded px-2 py-1">編輯</button>'+
+        '<button onclick="delS(\''+s.id+'\',\''+s.name+'\')" class="text-xs br rounded px-2 py-1">刪除</button>'+
+      '</div></td></tr>';
+  }).join('');
+}
+
+var eSId=null;
+function showSF(id){
+  eSId=id;var s=id?(C.adm.students||[]).find(function(x){return x.id===id;}):null;
+  var GR=['1年級','2年級','3年級','4年級','5年級','6年級'],ST=['進行中','已完成','暫停','自願服務'];
+  var total=s?s.total:5;
+  document.getElementById('sfa').innerHTML=
+    '<div class="bg-blue-50 border border-blue-200 rounded-xl p-5 mb-4">'+
+    '<div class="font-semibold text-blue-800 mb-3">'+(s?'編輯：'+s.name:'新增學生')+'</div>'+
+    '<div class="grid grid-cols-2 md:grid-cols-4 gap-3">'+
+      fi('姓名 *','sn',s?s.name:'')+fi('班級 *','sc',s?s.cls:'')+
+      fsel('年級','sg',GR,s?s.grade:'1年級')+
+      '<div><label class="text-xs text-gray-600">需完成總次數</label>'+
+        '<div class="flex items-center gap-2 mt-0.5">'+
+          '<button type="button" onclick="adjTotal(-1)" class="w-8 h-8 border rounded text-gray-600 hover:bg-gray-100 text-lg leading-none">−</button>'+
+          '<input id="st" type="number" value="'+total+'" min="1" max="99" class="w-14 border rounded px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-blue-400">'+
+          '<button type="button" onclick="adjTotal(1)" class="w-8 h-8 border rounded text-gray-600 hover:bg-gray-100 text-lg leading-none">＋</button>'+
+        '</div></div>'+
+      (s?'<div><label class="text-xs text-gray-600">已完成次數（系統自動）</label><div class="border rounded px-2 py-1.5 text-sm mt-0.5 bg-gray-50 text-gray-500">'+s.done+'</div></div>':'')+
+      fsel('狀態','ss',ST,s?s.status:'進行中')+
+      fi('登記老師','ste',s?s.teacher||'':'')+
+    '</div>'+
+    '<div class="mt-3"><label class="text-xs text-gray-600">備註</label><input id="sno" value="'+(s?s.note||'':'')+'" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"></div>'+
+    '<div class="flex gap-2 mt-3">'+
+      '<button onclick="saveS()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-5 py-1.5 text-sm">儲存</button>'+
+      '<button onclick="document.getElementById(\'sfa\').innerHTML=\'\'" class="border border-gray-200 text-gray-600 rounded-lg px-4 py-1.5 text-sm">取消</button>'+
+    '</div></div>';
+}
+function adjTotal(d){var el=document.getElementById('st');var v=parseInt(el.value)||1;el.value=Math.max(1,v+d);}
+function fi(l,id,v){return '<div><label class="text-xs text-gray-600">'+l+'</label><input id="'+id+'" value="'+(v||'')+'" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"></div>';}
+function fsel(l,id,opts,sel){return '<div><label class="text-xs text-gray-600">'+l+'</label><select id="'+id+'" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400">'+opts.map(function(o){return '<option'+(o===sel?' selected':'')+'>'+o+'</option>';}).join('')+'</select></div>';}
+function fnum(l,id,v){return '<div><label class="text-xs text-gray-600">'+l+'</label><input id="'+id+'" type="number" value="'+(v||0)+'" min="0" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400"></div>';}
+
+async function saveS(){
+  var name=document.getElementById('sn').value.trim(),cls=document.getElementById('sc').value.trim();
+  if(!name||!cls){toast('請填寫姓名和班級',true);return;}
+  var data={name:name,cls:cls,grade:document.getElementById('sg').value,
+    total:parseInt(document.getElementById('st').value)||5,done:parseInt(document.getElementById('sd').value)||0,
+    status:document.getElementById('ss').value,teacher:(document.getElementById('ste')?document.getElementById('ste').value.trim():''),
+    note:document.getElementById('sno').value.trim(),updatedAt:now()};
+  showLoad('儲存中...');
+  try{
+    if(eSId)await db.collection('students').doc(eSId).update(data);
+    else await db.collection('students').add(data);
+    hideLoad();toast('儲存成功');document.getElementById('sfa').innerHTML='';loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+async function delS(id,name){
+  if(!confirm('確定要刪除「'+name+'」的資料嗎？'))return;
+  showLoad('刪除中...');
+  try{await db.collection('students').doc(id).delete();hideLoad();toast('已刪除');loadAll();}
+  catch(e){hideLoad();toast('錯誤：'+e.message,true);}
+}
+
+// ══ 管理員：帳號管理 ══
+function renderAdmT(){
+  if(!C.adm){document.getElementById('main').innerHTML=loading();return;}
+  var all=C.adm.teachers||[];
+  var pending=all.filter(function(t){return t.isActive===false;});
+  var active=all.filter(function(t){return t.isActive!==false;});
+  var pendingHtml='';
+  if(pending.length>0){
+    pendingHtml='<div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">'+
+      '<div class="flex items-center gap-2 mb-3"><span class="text-amber-600 font-semibold text-sm">⏳ 待審核申請（'+pending.length+'）</span></div>'+
+      pending.map(function(t){
+        return '<div class="bg-white rounded-lg p-3 mb-2 flex items-center justify-between gap-2" id="prow-'+t.uid.replace(/[^a-zA-Z0-9]/g,'_')+'">'+
+          '<div><p class="font-medium text-gray-800">'+t.name+(t.title?' <span class="text-xs text-gray-400 font-normal">'+t.title+'</span>':'')+'</p>'+
+            '<p class="text-xs text-gray-500">'+(t.myClass?'班級：'+t.myClass+'・':'')+'申請時間：'+t.appliedAt+'</p></div>'+
+          '<div class="flex gap-1">'+
+            '<button onclick="showApprove(\''+t.uid+'\',\''+t.name+'\',\''+t.myClass+'\')" class="text-xs bg-green-600 hover:bg-green-700 text-white rounded px-3 py-1.5">核准</button>'+
+            '<button onclick="rejectT(\''+t.uid+'\',\''+t.name+'\')" class="text-xs br rounded px-2 py-1.5">拒絕</button>'+
+          '</div></div>';
+      }).join('')+
+      '<div id="approveForm"></div>'+
+    '</div>';
+  }
+  document.getElementById('main').innerHTML=
+    '<div class="flex items-center justify-between mb-4"><h2 class="text-xl font-bold text-gray-800">教師帳號管理</h2>'+
+      '<button onclick="showTF(null)" class="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-4 py-1.5 text-sm">+ 手動新增</button></div>'+
+    '<div id="tfa"></div>'+
+    pendingHtml+
+    '<div class="bg-white rounded-xl shadow-sm overflow-x-auto">'+
+      '<table class="w-full text-sm"><thead class="bg-gray-50 border-b"><tr>'+
+        '<th class="text-left px-4 py-3 text-gray-500">姓名</th>'+
+        '<th class="text-center px-4 py-3 text-gray-500">角色</th>'+
+        '<th class="text-center px-4 py-3 text-gray-500">負責班級</th>'+
+        '<th class="text-left px-4 py-3 text-gray-500">帳號類型</th>'+
+        '<th class="px-4 py-3 text-gray-500">操作</th>'+
+      '</tr></thead><tbody>'+
+      active.map(function(t){
+        var type=t.uid&&t.uid.startsWith('line:')?'LINE':'Email';
+        return '<tr class="border-b border-gray-50 hover:bg-gray-50">'+
+          '<td class="px-4 py-3 font-medium">'+t.name+'</td>'+
+          '<td class="px-4 py-3 text-center">'+badge(t.role==='admin'?'bp':'bb',t.role)+'</td>'+
+          '<td class="px-4 py-3 text-center text-gray-600">'+(t.myClass||'—')+'</td>'+
+          '<td class="px-4 py-3"><span class="text-xs '+(type==='LINE'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700')+' rounded-full px-2 py-0.5">'+type+'</span></td>'+
+          '<td class="px-4 py-3"><div class="flex gap-1">'+
+            '<button onclick="showTF(\''+t.uid+'\')" class="text-xs bb rounded px-2 py-1">編輯</button>'+
+            (t.uid!==T.uid?'<button onclick="delT(\''+t.uid+'\',\''+t.name+'\')" class="text-xs br rounded px-2 py-1">刪除</button>':'')+
+          '</div></td></tr>';
+      }).join('')+
+      '</tbody></table></div>';
+}
+
+var approveUid=null;
+function showApprove(uid,name,myClass){
+  approveUid=uid;
+  document.getElementById('approveForm').innerHTML=
+    '<div class="bg-green-50 border border-green-200 rounded-xl p-4 mt-2">'+
+    '<p class="font-semibold text-green-800 mb-3">核准「'+name+'」的帳號</p>'+
+    '<div class="grid grid-cols-2 gap-3">'+
+      '<div><label class="text-xs text-gray-600">角色</label>'+
+        '<select id="apRole" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5">'+
+          '<option value="teacher">teacher（一般老師）</option>'+
+          '<option value="admin">admin（管理員）</option>'+
+        '</select></div>'+
+      '<div><label class="text-xs text-gray-600">負責班級</label>'+
+        '<input id="apClass" value="'+myClass+'" placeholder="如：3年2班" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5"></div>'+
+    '</div>'+
+    '<div class="flex gap-2 mt-3">'+
+      '<button onclick="confirmApprove()" class="bg-green-600 hover:bg-green-700 text-white rounded-lg px-5 py-1.5 text-sm">確認核准</button>'+
+      '<button onclick="document.getElementById(\'approveForm\').innerHTML=\'\'" class="border border-gray-200 text-gray-600 rounded-lg px-4 py-1.5 text-sm">取消</button>'+
+    '</div></div>';
+}
+
+async function confirmApprove(){
+  if(!approveUid)return;
+  showLoad('核准中...');
+  try{
+    await db.collection('teachers').doc(approveUid).update({
+      isActive:true,
+      role:document.getElementById('apRole').value,
+      myClass:document.getElementById('apClass').value.trim()
+    });
+    hideLoad();toast('已核准');approveUid=null;loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+async function rejectT(uid,name){
+  if(!confirm('確定要拒絕「'+name+'」的申請並刪除紀錄嗎？'))return;
+  showLoad('處理中...');
+  try{
+    await db.collection('teachers').doc(uid).delete();
+    hideLoad();toast('已拒絕');loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+var eTUid=null;
+function showTF(uid){
+  eTUid=uid;var t=uid?(C.adm.teachers||[]).find(function(x){return x.uid===uid;}):null;
+  document.getElementById('tfa').innerHTML=
+    '<div class="bg-purple-50 border border-purple-200 rounded-xl p-5 mb-4">'+
+    '<div class="font-semibold text-purple-800 mb-3">'+(t?'編輯帳號':'新增老師帳號')+'</div>'+
+    '<div class="grid grid-cols-2 gap-3">'+
+      (!t?'<div class="col-span-2"><label class="text-xs text-gray-600">登入類型</label>'+
+        '<select id="tt" onchange="toggleIdField()" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-purple-400">'+
+          '<option value="line">LINE（用 LINE ID）</option>'+
+          '<option value="email">Email（管理員用）</option>'+
+        '</select></div>'+
+        '<div class="col-span-2" id="idField"><label class="text-xs text-gray-600">LINE ID（老師的 LINE User ID）</label>'+
+          '<input id="tid" placeholder="U1c1cdf741e8fc85..." class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-purple-400"></div>':'')+
+      '<div><label class="text-xs text-gray-600">姓名 *</label><input id="tn" value="'+(t?t.name:'')+'" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-purple-400"></div>'+
+      '<div><label class="text-xs text-gray-600">角色</label><select id="tr2" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-purple-400">'+
+        ['teacher','admin'].map(function(r){return '<option'+(t&&t.role===r?' selected':'')+'>'+r+'</option>';}).join('')+'</select></div>'+
+      '<div><label class="text-xs text-gray-600">負責班級</label><input id="tc" value="'+(t?t.myClass||'':'')+'" placeholder="如：3年2班" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-purple-400"></div>'+
+    '</div>'+
+    '<div class="flex gap-2 mt-3">'+
+      '<button onclick="saveT()" class="bg-purple-600 hover:bg-purple-700 text-white rounded-lg px-5 py-1.5 text-sm">儲存</button>'+
+      '<button onclick="document.getElementById(\'tfa\').innerHTML=\'\'" class="border border-gray-200 text-gray-600 rounded-lg px-4 py-1.5 text-sm">取消</button>'+
+    '</div></div>';
+}
+
+function toggleIdField(){
+  var type=document.getElementById('tt').value;
+  var field=document.getElementById('idField');
+  if(type==='line'){
+    field.innerHTML='<label class="text-xs text-gray-600">LINE ID（老師的 LINE User ID）</label>'+
+      '<input id="tid" placeholder="U1c1cdf741e8fc85..." class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-purple-400">';
+  } else {
+    field.innerHTML='<label class="text-xs text-gray-600">Email *</label>'+
+      '<input id="tid" placeholder="teacher@school.edu.tw" class="w-full border rounded px-2 py-1.5 text-sm mt-0.5 focus:outline-none focus:ring-1 focus:ring-purple-400">';
+  }
+}
+
+async function saveT(){
+  var name=document.getElementById('tn').value.trim();
+  if(!name){toast('請填寫姓名',true);return;}
+  var uid;
+  if(eTUid){
+    uid=eTUid;
+  } else {
+    var type=document.getElementById('tt').value;
+    var id=document.getElementById('tid').value.trim();
+    if(!id){toast('請填寫 LINE ID 或 Email',true);return;}
+    uid=type+':'+id;
+  }
+  showLoad('儲存中...');
+  try{
+    await db.collection('teachers').doc(uid).set({
+      name:name,role:document.getElementById('tr2').value,
+      myClass:document.getElementById('tc').value.trim()
+    },{merge:true});
+    hideLoad();toast('已儲存');document.getElementById('tfa').innerHTML='';loadAll();
+  }catch(e){hideLoad();toast('失敗：'+e.message,true);}
+}
+
+async function delT(uid,name){
+  if(!confirm('確定要刪除「'+name+'」的帳號嗎？'))return;
+  showLoad('刪除中...');
+  try{await db.collection('teachers').doc(uid).delete();hideLoad();toast('已刪除');loadAll();}
+  catch(e){hideLoad();toast('錯誤：'+e.message,true);}
+}
+
+// ══ 管理員：設定 ══
+function renderAdmSet(){
+  if(!C.adm){document.getElementById('main').innerHTML=loading();return;}
+  var fbs=C.adm.feedbacks||[];
+  var SC={'待處理':'by','處理中':'bb','已回覆':'bg2','已結案':'bgr'};
+  document.getElementById('main').innerHTML=
+    '<h2 class="text-xl font-bold text-gray-800 mb-5">⚙️ 設定</h2>'+
+    '<div class="bg-white rounded-xl shadow-sm p-6">'+
+      '<h3 class="font-semibold text-gray-700 mb-4">📬 意見回饋管理</h3>'+
+      (fbs.length?'<div class="space-y-4">'+fbs.map(function(f){
+        var sc=SC[f.processingStatus]||'bgr';
+        return '<div class="border border-gray-100 rounded-xl p-4">'+
+          '<div class="flex items-center gap-2 flex-wrap mb-1">'+
+            '<span class="font-semibold">'+f.title+'</span>'+badge('bgr',f.category)+badge(sc,f.processingStatus)+
+          '</div>'+
+          '<div class="text-xs text-gray-400 mb-2">'+f.submitterName+' · '+f.submittedAt+'</div>'+
+          '<p class="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 mb-3">'+f.content+'</p>'+
+          (f.reply?'<div class="bg-blue-50 rounded-lg px-3 py-2 text-sm text-blue-800 mb-2"><span class="font-medium">已回覆：</span>'+f.reply+'</div>':'')+
+          '<div class="flex gap-2 flex-wrap">'+
+            ['待處理','處理中','已回覆','已結案'].map(function(st){
+              return '<button onclick="updFb(\''+f.id+'\',\''+st+'\')" class="text-xs border border-gray-200 '+(f.processingStatus===st?'bg-gray-100 font-bold':'')+' rounded px-3 py-1 hover:bg-gray-50">'+st+'</button>';
+            }).join('')+
+            '<button onclick="showReply(\''+f.id+'\')" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded px-3 py-1">💬 回覆</button>'+
+          '</div></div>';
+      }).join('')+'</div>':'<div class="text-center py-8 text-gray-400">目前沒有意見回饋</div>')+
+    '</div>';
+}
+
+async function updFb(id,status){
+  showLoad('更新中...');
+  try{await db.collection('feedbacks').doc(id).update({processingStatus:status});hideLoad();toast('狀態已更新');loadAll();}
+  catch(e){hideLoad();toast('錯誤',true);}
+}
+
+function showReply(id){
+  var f=(C.adm.feedbacks||[]).find(function(x){return x.id===id;});
+  openModal('<div class="p-6">'+
+    '<div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">💬 回覆意見</h3><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div>'+
+    '<p class="text-sm text-gray-500 bg-gray-50 rounded-lg p-3 mb-4">'+(f?f.content:'')+'</p>'+
+    '<textarea id="rep" rows="4" placeholder="輸入回覆內容..." class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-3">'+(f&&f.reply?f.reply:'')+'</textarea>'+
+    '<div class="flex gap-2">'+
+      '<button onclick="doReply(\''+id+'\')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">送出回覆</button>'+
+      '<button onclick="closeModal()" class="px-5 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm">取消</button>'+
+    '</div></div>');
+}
+
+async function doReply(id){
+  var reply=document.getElementById('rep').value.trim();
+  if(!reply){toast('請輸入回覆內容',true);return;}
+  showLoad('送出中...');
+  try{
+    await db.collection('feedbacks').doc(id).update({processingStatus:'已回覆',reply:reply});
+    hideLoad();closeModal();toast('回覆已送出');loadAll();
+  }catch(e){hideLoad();toast('錯誤',true);}
+}
+</script>
+</body>
+</html>
