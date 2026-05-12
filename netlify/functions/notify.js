@@ -6,8 +6,8 @@ module.exports.handler = async (event) => {
       const lines = ['姓名：' + d.name];                            
       if (d.title) lines.push('職稱：' + d.title);
       if (d.myClass) lines.push('班級：' + d.myClass);              
-      const msg = '有新的教師權限申請\n\n' + lines.join('\n') +
-  '\n\n請開啟友善校園系統審核。';                                   
+      const msg = '有新的教師權限申請\n\n' + lines.join('\n') + '\n\n請 
+  點以下連結審核：\nhttps://liff.line.me/2010068800-aFZP1shW';                                  
       await fetch('https://api.line.me/v2/bot/message/push', {
         method: 'POST',                                             
         headers: {
