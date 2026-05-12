@@ -319,6 +319,7 @@ async function applyAccount(){
       isActive:false,appliedAt:new Date().toLocaleString('zh-TW')
     });
     hideLoad();showPage('pendingPage');
+    fetch('/.netlify/functions/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,title,myClass})}).catch(function(){});
   }catch(e){hideLoad();toast('送出失敗：'+e.message,true);}
 }
 
