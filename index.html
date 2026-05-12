@@ -288,7 +288,7 @@ async function loadPublicData(){
   try{
     const[ss,rs]=await Promise.all([
       db.collection('students').get(),
-      db.collection('registrations').where('type','==','自願').where('completionStatus','==','已完成').get()
+      db.collection('registrations').where('type','==','自願').get()
     ]);
     var students=ss.docs.map(function(d){return d.data();});
     var total=students.length;
@@ -301,6 +301,7 @@ async function loadPublicData(){
           '<div class="text-xs text-gray-400 mt-0.5">'+i[1]+'</div></div>';
       }).join('');
     var regs=rs.docs.map(function(d){return Object.assign({id:d.id},d.data());})
+      .filter(function(r){return r.completed;})
       .sort(function(a,b){return (b.completedAt||'').localeCompare(a.completedAt||'');})
       .slice(0,30);
     document.getElementById('pub-honor').innerHTML=regs.length?
