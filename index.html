@@ -813,20 +813,6 @@ async function doRegister(){
 // ══ 環教登記 ══（保留供向下相容）
 function showEnvEd(aId,enc){showRegister(aId,enc);}
 
-  eSel=[];
-  openModal('<div class="p-6">'+
-    '<div class="flex justify-between items-center mb-3"><h3 class="font-bold text-lg text-blue-800">🎓 環教登記</h3><button onclick="closeModal()" class="text-gray-400 text-2xl leading-none">×</button></div>'+
-    '<p class="text-sm text-gray-500 mb-3">區域：<span class="font-medium text-gray-700">'+decodeURIComponent(enc)+'</span></p>'+
-    '<div><label class="text-sm text-gray-600">帶隊老師</label><input id="ee-t" value="'+T.name+'" class="inp mt-0.5 mb-3"></div>'+
-    '<div><label class="text-sm text-gray-600">搜尋學生（姓名或班級）</label><input id="ee-q" placeholder="例如：陳小明 或 3年2班" oninput="searchEE()" class="inp mt-0.5 mb-2"></div>'+
-    '<div id="ee-res" class="space-y-2 max-h-48 overflow-y-auto mb-3"></div>'+
-    '<div id="ee-sel" class="hidden bg-blue-50 rounded-lg p-3 mb-3"><div class="text-xs text-blue-700 font-medium mb-1">已選擇：</div><div id="ee-sl" class="flex flex-wrap gap-1"></div></div>'+
-    '<div class="flex gap-2">'+
-      '<button onclick="doEnvEd(\''+aId+'\',\''+enc+'\')" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-2.5 text-sm font-medium">確認登記</button>'+
-      '<button onclick="closeModal()" class="px-5 border border-gray-200 text-gray-600 rounded-lg py-2.5 text-sm">取消</button>'+
-    '</div></div>');
-}
-
 async function searchEE(){
   var kw=document.getElementById('ee-q').value.trim().toLowerCase();
   if(!kw){document.getElementById('ee-res').innerHTML='';return;}
