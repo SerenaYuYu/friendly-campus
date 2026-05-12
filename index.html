@@ -467,9 +467,26 @@ function renderTab(){
 function renderSum(){
   if(!C.summary){document.getElementById('main').innerHTML=loading();return;}
   var s=C.summary;
-  var rows=Object.entries(s.byClass||{}).sort(function(a,b){return b[1].times-a[1].times;}).map(function(e){
-    return '<tr class="border-b border-gray-50 hover:bg-gray-50"><td class="px-4 py-2 font-medium">'+e[0]+'</td><td class="px-4 py-2 text-center">'+e[1].count+'</td><td class="px-4 py-2 text-center font-semibold text-blue-600">'+e[1].times+'</td></tr>';
-  }).join('');
+  var bottomLeft='';
+  if(T.role==='admin'){
+    var rows=Object.entries(s.byClass||{}).sort(function(a,b){return b[1].times-a[1].times;}).map(function(e){
+      return '<tr class="border-b border-gray-50 hover:bg-gray-50"><td class="px-4 py-2 font-medium">'+e[0]+'</td><td class="px-4 py-2 text-center">'+e[1].count+'</td><td class="px-4 py-2 text-center font-semibold text-blue-600">'+e[1].times+'</td></tr>';
+    }).join('');
+    bottomLeft='<div class="bg-white rounded-xl shadow-sm p-5"><h3 class="font-semibold text-gray-700 mb-3">📊 各班環教統計</h3>'+
+      (rows?'<table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-2 text-gray-500">班級</th><th class="text-center px-4 py-2 text-gray-500">人數</th><th class="text-center px-4 py-2 text-gray-500">剩餘次數</th></tr></thead><tbody>'+rows+'</tbody></table>':
+      '<div class="text-center py-8 text-gray-400">目前無需完成環教的學生 🎉</div>')+
+    '</div>';
+  } else if(T.myClass&&C.myData){
+    var need=(C.myData.students||[]).filter(function(s){return s.status==='進行中'&&s.done<s.total;});
+    var left=need.reduce(function(acc,st){return acc+(st.total-st.done);},0);
+    bottomLeft='<div class="bg-white rounded-xl shadow-sm p-5"><h3 class="font-semibold text-gray-700 mb-3">🏫 '+T.myClass+'</h3>'+
+      '<div class="grid grid-cols-2 gap-3">'+
+        '<div class="bg-red-50 rounded-xl p-3 text-center"><div class="text-xl font-bold text-red-500">'+need.length+'</div><div class="text-xs text-gray-500 mt-0.5">待完成人數</div></div>'+
+        '<div class="bg-purple-50 rounded-xl p-3 text-center"><div class="text-xl font-bold text-purple-500">'+left+'</div><div class="text-xs text-gray-500 mt-0.5">班上剩餘次數</div></div>'+
+      '</div>'+
+      '<button onclick="sw(\'cls\')" class="mt-3 w-full text-blue-500 text-sm border border-blue-200 rounded-lg py-1.5">查看班級詳細 →</button>'+
+    '</div>';
+  }
   document.getElementById('main').innerHTML=
     '<h2 class="text-xl font-bold text-gray-800 mb-5">全校環教概況</h2>'+
     '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">'+
@@ -479,10 +496,7 @@ function renderSum(){
       statCard('待清理區域',(s.pendingAreas||[]).length+' 個','#f97316')+
     '</div>'+
     '<div class="grid md:grid-cols-2 gap-4">'+
-      '<div class="bg-white rounded-xl shadow-sm p-5"><h3 class="font-semibold text-gray-700 mb-3">📊 各班環教統計</h3>'+
-        (rows?'<table class="w-full text-sm"><thead class="bg-gray-50"><tr><th class="text-left px-4 py-2 text-gray-500">班級</th><th class="text-center px-4 py-2 text-gray-500">人數</th><th class="text-center px-4 py-2 text-gray-500">剩餘次數</th></tr></thead><tbody>'+rows+'</tbody></table>':
-        '<div class="text-center py-8 text-gray-400">目前無需完成環教的學生 🎉</div>')+
-      '</div>'+
+      (bottomLeft||'')+
       '<div class="bg-white rounded-xl shadow-sm p-5">'+
         '<div class="flex justify-between items-center mb-3"><h3 class="font-semibold text-gray-700">🗺️ 待清理區域</h3><button onclick="sw(\'areas\')" class="text-blue-500 text-sm">查看全部</button></div>'+
         ((s.pendingAreas||[]).length?(s.pendingAreas||[]).slice(0,5).map(function(a){
